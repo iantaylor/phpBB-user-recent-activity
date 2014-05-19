@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<?xml-stylesheet type="text/xsl" href="modx.prosilver.en.xsl"?>
+<!--NOTICE: Please open this file in your web browser. If presented with a security warning, you may safely tell it to allow the blocked content.-->
+<!--For security purposes, please check: http://www.phpbb.com/mods/ for the latest version of this MOD.\nAlthough MODs are checked before being allowed in the MODs Database there is no guarantee that there are no security problems within the MOD.\nNo support will be given for MODs not found within the MODs Database which can be found at http://www.phpbb.com/mods/-->
+<mod xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="https://www.phpbb.com/mods/xml/modx-1.2.6.xsd">
+	<header>
+		<meta name="generator" content="MODX file generated with PP MODX Creator by tumba25 (online version)"/>
+		<license><![CDATA[http://opensource.org/licenses/gpl-license.php GNU General Public License v2]]></license>
+		<title lang="en"><![CDATA[User Recent Activity]]></title>
+		<description lang="en"><![CDATA[Displays your users recent activity in their profile.]]></description>
+		<github><![CDATA[https://github.com/iantaylor/phpBB-user-recent-activity]]></github>
+		<author-group>
+			<author>
+				<realname><![CDATA[Ian Taylor]]></realname>
+				<username><![CDATA[platinum_2007]]></username>
+				<homepage><![CDATA[http://ian-taylor.ca]]></homepage>
+				<email><![CDATA[ian@ian-taylor.ca]]></email>
+			</author>
+		</author-group>
+		<mod-version>1.0.3</mod-version>
+		<installation>
+			<level>easy</level>
+			<time>600</time>
+			<target-version>3.0.12</target-version>
+		</installation>
+		<history>
+			<entry>
+				<date>2014-05-19</date>
+				<rev-version>1.0.3</rev-version>
+				<changelog lang="en">
+					<change><![CDATA[Updated for 3.0.12]]></change>
+				</changelog>
+			</entry>
+		</history>
+		<link-group>
+			<link type="template" href="contrib/subsilver2.xml" lang="en">Subsilver 2 Template instructions</link>
+		</link-group>
+	</header>
+	<action-group>
+		<sql><![CDATA[INSERT INTO phpbb_config (config_name, config_value) VALUES ('allow_recent_activity', 1);
+INSERT INTO phpbb_config (config_name, config_value) VALUES ('number_recent_activity', 10);
+INSERT INTO phpbb_config (config_name, config_value) VALUES ('show_recent_post', 1);
+INSERT INTO phpbb_config (config_name, config_value) VALUES ('number_char_post', 100);]]></sql>
+		<open src="memberlist.php">
+			<edit>
+				<find><![CDATA[unset($group_data);]]></find>
+				<action type="before-add"><![CDATA[		$sql = $db->sql_build_query('SELECT', array(
+			'SELECT'	=> 'p.poster_id, p.post_subject,p.post_id, p.post_time ,p.post_text, p.bbcode_uid, p.bbcode_bitfield, p.enable_smilies,p.enable_bbcode,p.enable_magic_url,t.topic_replies, t.topic_views, t.forum_id',
+			'FROM'		=> array(
+				POSTS_TABLE		=> 'p',
+			),
+			'LEFT_JOIN'	=> array(
+				array(
+					'FROM'	=> array(TOPICS_TABLE => 't'),
+					'ON'	=> 'p.poster_id ='.$user_id,		
+				)
+			),
+			'WHERE'		=> 'p.topic_id = t.topic_id',
+			'ORDER_BY'	=> 'p.post_id DESC'
+		));
+
+		$limit = $config['number_recent_activity'];
+		$result	 = $db->sql_query_limit($sql, $limit);
+
+		while($row = $db->sql_fetchrow($result))
+		{ 
+			if($auth->acl_get('f_read', $row['forum_id']))
+			{
+				$row['bbcode_options'] = (($row['enable_bbcode']) ? OPTION_FLAG_BBCODE : 0) +
+    (($row['enable_smilies']) ? OPTION_FLAG_SMILIES : 0) + 
+    (($row['enable_magic_url']) ? OPTION_FLAG_LINKS : 0);
+				$poster_id 	= $row['poster_id'];
+				$post_id	= $row['post_id'];
+				$text = generate_text_for_display($row['post_text'], $row['bbcode_uid'], $row['bbcode_bitfield'], $row['bbcode_options']);
+		
+				$post_text =  strip_bbcode($text);
+				$template->assign_block_vars('post', array(	
+												   
+					'SUBJECT'			=> $row['post_subject'],
+					'TIME'				=> $user->format_date($row['post_time']),
+					'POST_TEXT'			=> truncate_string($text, intval($config['number_char_post'])),
+					'REPLIES'			=> $row['topic_replies'],
+					'VIEWS'				=> $row['topic_views'],
+					'U_POSTS'			=> append_sid("{$phpbb_root_path}viewtopic.$phpEx", "p=$post_id#p$post_id"),
+
+				));
+			}
+		}
+		$db->sql_freeresult($result);
+]]></action>
+			</edit>
+			<edit>
+				<find><![CDATA[		));
+
+		if (!empty($profile_fields['row']))]]></find>
+				<action type="before-add"><![CDATA[			'ENABLE_RECENT'			=> $config['allow_recent_activity'],
+			'ENABLE_RECENT_POST' 	=> $config['show_recent_post'],
+			'LAST_POST_IMG'			=> $user->img('icon_topic_latest', 'VIEW_LATEST_POST')
+]]></action>
+			</edit>
+		</open>
+		<open src="includes/acp/acp_board.php">
+			<edit>
+				<find><![CDATA['allow_birthdays'		=> array('lang' => 'ALLOW_BIRTHDAYS',		'validate' => 'bool',	'type' => 'radio:yes_no', 'explain' => true),]]></find>
+				<action type="after-add"><![CDATA['allow_recent_activity'		=> array('lang' => 'ALLOW_RECENT_ACTIVITY',		'validate' => 'bool',	'type' => 'radio:yes_no', 'explain' => true),
+						'number_recent_activity'		=> array('lang' => 'NUMBER_RECENT_ACTIVITY',		'validate' => 'string',	'type' => 'text:1:3', 'explain' => true),
+						'show_recent_post'		=> array('lang' => 'SHOW_RECENT_POST',		'validate' => 'bool',	'type' => 'radio:yes_no', 'explain' => true),
+						'number_char_post'		=> array('lang' => 'NUMBER_CHAR_POST',		'validate' => 'string',	'type' => 'text:1:4', 'explain' => true),
+]]></action>
+			</edit>
+		</open>
+		<open src="language/en/memberlist.php">
+			<edit>
+				<find><![CDATA[	'REAL_NAME'				=> 'Recipient name',
+]]></find>
+				<action type="after-add"><![CDATA[	'RECENT_ACTIVITY'		=>	'recent activity',
+	'DATE'					=>  'Date',
+]]></action>
+			</edit>
+		</open>
+		<open src="language/en/acp/board.php">
+			<edit>
+				<find><![CDATA[	'ALLOW_PM_ATTACHMENTS'		=> 'Allow attachments in private messages',
+]]></find>
+				<action type="after-add"><![CDATA[	'ALLOW_RECENT_ACTIVITY'		=>	'Allow recent activity',
+	'ALLOW_RECENT_ACTIVITY_EXPLAIN'		=>	'Recent activity will display in user profiles.',
+	'NUMBER_RECENT_ACTIVITY'			=>	'Number of recent activity',
+	'NUMBER_RECENT_ACTIVITY_EXPLAIN'	=>	'Number of recent activity to display in the users profile.',
+	
+	'SHOW_RECENT_POST'					=>	'Show the post text',
+	'SHOW_RECENT_POST_EXPLAIN'			=>	'Show the recent activity post text in the mod?',
+	'NUMBER_CHAR_POST'					=>	'Number of post characters',
+	'NUMBER_CHAR_POST_EXPLAIN'			=>	'input the number of characters to display if you are allowing the mod to display post text.',]]></action>
+			</edit>
+		</open>
+		<open src="styles/prosilver/template/memberlist_view.html">
+			<edit>
+				<find><![CDATA[<!-- IF SIGNATURE -->]]></find>
+				<action type="before-add"><![CDATA[<!-- IF POSTS && ENABLE_RECENT -->
+
+		<div class="forumbg">
+		<div class="inner"><span class="corners-top"><span></span></span>
+		<ul class="topiclist">
+			<li class="header">
+				<dl>
+				<dt>{USERNAME}'s {L_RECENT_ACTIVITY}
+				</dt>
+					<dd class="posts">{L_REPLIES}</dd>
+					<dd class="views">{L_VIEWS}</dd>
+					<dd class="lastpost"><span>{L_DATE}</span></dd>
+				</dl>
+			</li>
+		</ul>
+<!-- BEGIN post -->
+<ul class="topiclist forums">
+
+		<li class="row">
+				<dl>
+			<dt><a href="{post.U_POSTS}">{post.SUBJECT}</a><br />
+			<!-- IF ENABLE_RECENT_POST --> <font style="font-style:italic">{post.POST_TEXT}...</font> <!-- ENDIF -->
+						</dt> 
+				<dd class="posts"> <dfn>{L_REPLIES}</dfn>{post.REPLIES}</dd>
+				<dd class="views"><dfn>{L_VIEWS}</dfn>{post.VIEWS}</dd>
+				<dd class="lastpost"><span><dfn>{L_LAST_POST} </dfn>{post.TIME}&nbsp;<a href="{post.U_POSTS}">{LAST_POST_IMG}</a></dd>
+			</dl>
+		</li>
+
+	</ul>
+<!-- END post -->
+
+		<span class="corners-bottom"><span></span></span></div>
+	</div>
+<!-- ENDIF -->
+]]></action>
+			</edit>
+		</open>
+		<diy-instructions lang="en"><![CDATA[Purge your cache!
+
+To change the settings go to your ACP >> General >> board features]]></diy-instructions>
+	</action-group>
+</mod>
